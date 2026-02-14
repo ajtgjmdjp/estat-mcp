@@ -9,7 +9,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # StatsTable
 # ---------------------------------------------------------------------------
@@ -40,13 +39,9 @@ class StatsTable(BaseModel):
 
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> StatsTable:
-        """Construct from e-Stat API response.
+        """Construct from an e-Stat API v3.0 TABLE_INF dict.
 
-        Handles both the real e-Stat API v3.0 format (UPPERCASE keys with
-        @-prefixed attributes and $ text content) and a simplified format
-        with plain/prefixed keys.
-
-        Real e-Stat format example::
+        Example input::
 
             {
                 "@id": "0003410379",
@@ -58,53 +53,29 @@ class StatsTable(BaseModel):
                 "OPEN_DATE": "2019-12-20",
             }
         """
-        # Detect real e-Stat API v3.0 format by checking for UPPERCASE keys
-        # that are unique to the real format (TITLE, STAT_NAME, GOV_ORG, etc.)
-        _estat_keys = {"TITLE", "STAT_NAME", "GOV_ORG", "STATISTICS_NAME", "SURVEY_DATE"}
-        if _estat_keys & data.keys():
-            title = data.get("TITLE", {})
-            name = title.get("$", "") if isinstance(title, dict) else str(title) if title else ""
+        title = data.get("TITLE", {})
+        name = title.get("$", "") if isinstance(title, dict) else str(title) if title else ""
 
-            stat_name_obj = data.get("STAT_NAME", {})
-            gov_code = (
-                stat_name_obj.get("@code")
-                if isinstance(stat_name_obj, dict)
-                else None
-            )
+        stat_name_obj = data.get("STAT_NAME", {})
+        gov_code = (
+            stat_name_obj.get("@code")
+            if isinstance(stat_name_obj, dict)
+            else None
+        )
 
-            gov_org = data.get("GOV_ORG", {})
-            organization = (
-                gov_org.get("$") if isinstance(gov_org, dict) else None
-            )
-
-            return cls(
-                id=str(data.get("@id", "")),
-                name=name,
-                gov_code=gov_code,
-                survey_date=str(data.get("SURVEY_DATE", "")) or None,
-                open_date=data.get("OPEN_DATE"),
-                organization=organization,
-                statistics_name=data.get("STATISTICS_NAME"),
-            )
-
-        # --- Fallback: simplified format with plain/@-prefixed keys ---
-        def _get(key: str) -> Any:
-            return data.get(key) or data.get(f"@{key}")
-
-        # Get organization from gov_org object
-        org = ""
-        gov_org = data.get("gov_org", {})
-        if isinstance(gov_org, dict):
-            org = gov_org.get("$") or gov_org.get("@name", "")
+        gov_org = data.get("GOV_ORG", {})
+        organization = (
+            gov_org.get("$") if isinstance(gov_org, dict) else None
+        )
 
         return cls(
-            id=_get("id") or "",
-            name=_get("statistic_name") or _get("name") or "",
-            gov_code=_get("stats_code") or _get("gov_code"),
-            survey_date=_get("survey_date") or _get("survey_data"),
-            open_date=_get("open_date") or _get("open_data"),
-            organization=org or _get("organization") or _get("stat_name"),
-            statistics_name=_get("statistics_name") or _get("stat_name"),
+            id=str(data.get("@id", "")),
+            name=name,
+            gov_code=gov_code,
+            survey_date=str(data.get("SURVEY_DATE", "")) or None,
+            open_date=data.get("OPEN_DATE"),
+            organization=organization,
+            statistics_name=data.get("STATISTICS_NAME"),
         )
 
 

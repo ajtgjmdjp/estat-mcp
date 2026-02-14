@@ -24,37 +24,8 @@ class TestStatsTable:
         assert table.name == "人口推計"
         assert table.gov_code == "00200511"
 
-    def test_stats_table_from_api_response_plain(self) -> None:
-        """Test StatsTable from API response with plain keys."""
-        data = {
-            "id": "0003410379",
-            "statistic_name": "人口推計（令和元年）",
-            "stats_code": "00200511",
-            "survey_date": "201910",
-        }
-        table = StatsTable.from_api_response(data)
-        assert table.id == "0003410379"
-        assert table.name == "人口推計（令和元年）"
-        assert table.gov_code == "00200511"
-        assert table.survey_date == "201910"
-
-    def test_stats_table_from_api_response_prefixed(self) -> None:
-        """Test StatsTable from API response with @-prefixed keys."""
-        data = {
-            "@id": "0003410379",
-            "@statistic_name": "人口推計（令和元年）",
-            "@stats_code": "00200511",
-            "@survey_date": "201910",
-            "gov_org": {"@code": "00200", "$": "総務省統計局"},
-        }
-        table = StatsTable.from_api_response(data)
-        assert table.id == "0003410379"
-        assert table.name == "人口推計（令和元年）"
-        assert table.gov_code == "00200511"
-        assert table.survey_date == "201910"
-
-    def test_stats_table_from_api_response_estat_format(self) -> None:
-        """Test StatsTable from real e-Stat API response format."""
+    def test_stats_table_from_api_response(self) -> None:
+        """Test StatsTable from e-Stat API v3.0 TABLE_INF format."""
         data = {
             "@id": "0003410379",
             "STAT_NAME": {"@code": "00200521", "$": "国勢調査"},
@@ -72,6 +43,28 @@ class TestStatsTable:
         assert table.statistics_name == "国勢調査 人口等基本集計"
         assert table.survey_date == "201910"
         assert table.open_date == "2019-12-20"
+
+    def test_stats_table_from_api_response_string_title(self) -> None:
+        """Test StatsTable with TITLE as plain string (not dict)."""
+        data = {
+            "@id": "0003410380",
+            "STAT_NAME": {"@code": "00200521", "$": "国勢調査"},
+            "GOV_ORG": {"@code": "00200", "$": "総務省"},
+            "TITLE": "人口推計（令和二年）",
+            "SURVEY_DATE": "202010",
+        }
+        table = StatsTable.from_api_response(data)
+        assert table.id == "0003410380"
+        assert table.name == "人口推計（令和二年）"
+
+    def test_stats_table_from_api_response_minimal(self) -> None:
+        """Test StatsTable with minimal fields."""
+        data = {"@id": "0003410381"}
+        table = StatsTable.from_api_response(data)
+        assert table.id == "0003410381"
+        assert table.name == ""
+        assert table.gov_code is None
+        assert table.organization is None
 
 
 class TestStatsMeta:

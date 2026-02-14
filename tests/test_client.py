@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from estat_mcp.client import EstatAPIError, EstatClient, _RateLimiter, _ensure_list, _parse_numeric
+from estat_mcp.client import EstatAPIError, EstatClient, _ensure_list, _parse_numeric, _RateLimiter
 
 
 class TestHelpers:
@@ -165,7 +165,12 @@ class TestGetMetaParsing:
                             {
                                 "@id": "tab",
                                 "@name": "表章項目",
-                                "CLASS": {"@code": "00001", "@name": "人口", "@level": "1", "@unit": "人"},
+                                "CLASS": {
+                                    "@code": "00001",
+                                    "@name": "人口",
+                                    "@level": "1",
+                                    "@unit": "人",
+                                },
                             },
                             {
                                 "@id": "cat01",
@@ -254,9 +259,21 @@ class TestGetDataParsing:
                     },
                     "DATA_INF": {
                         "VALUE": [
-                            {"@tab": "00001", "@cat01": "100", "@time": "2024000", "@area": "00000", "@unit": "人", "$": "125000000"},
-                            {"@tab": "00001", "@cat01": "110", "@time": "2024000", "@area": "00000", "@unit": "人", "$": "61000000"},
-                            {"@tab": "00001", "@cat01": "100", "@time": "2024000", "@area": "13000", "@unit": "人", "$": "-"},
+                            {
+                                "@tab": "00001", "@cat01": "100",
+                                "@time": "2024000", "@area": "00000",
+                                "@unit": "人", "$": "125000000",
+                            },
+                            {
+                                "@tab": "00001", "@cat01": "110",
+                                "@time": "2024000", "@area": "00000",
+                                "@unit": "人", "$": "61000000",
+                            },
+                            {
+                                "@tab": "00001", "@cat01": "100",
+                                "@time": "2024000", "@area": "13000",
+                                "@unit": "人", "$": "-",
+                            },
                         ],
                     },
                 },

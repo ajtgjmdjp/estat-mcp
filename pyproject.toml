@@ -62,6 +62,7 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "TCH", "RUF"]
+ignore = ["RUF001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["estat_mcp"]

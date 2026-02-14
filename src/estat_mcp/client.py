@@ -28,6 +28,8 @@ e-Stat API v3.0 JSON response conventions:
 from __future__ import annotations
 
 import asyncio
+import os
+import time as _time
 from typing import Any
 
 import httpx
@@ -42,8 +44,9 @@ from estat_mcp.models import (
     StatsTable,
 )
 
-# e-Stat API v3.0 base URL
+# e-Stat API v3.0 base URLs
 _BASE_URL = "https://api.e-stat.go.jp/rest/3.0/app/json/"
+_BASE_URL_FORM = "https://api.e-stat.go.jp/rest/3.0/app/"
 
 # HTTP status codes that warrant a retry
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -98,13 +101,11 @@ class _RateLimiter:
         if self._interval <= 0:
             return
         async with self._lock:
-            import time
-
-            now = time.time()
+            now = _time.time()
             elapsed = now - self._last_request
             if elapsed < self._interval:
                 await asyncio.sleep(self._interval - elapsed)
-            self._last_request = time.time()
+            self._last_request = _time.time()
 
 
 class EstatClient:
@@ -116,8 +117,6 @@ class EstatClient:
         timeout: float = _DEFAULT_TIMEOUT,
         rate_limit: float = _DEFAULT_RATE_LIMIT,
     ) -> None:
-        import os
-
         self._app_id = app_id or os.environ.get("ESTAT_APP_ID")
         if not self._app_id:
             logger.warning("No app_id provided. Set app_id or ESTAT_APP_ID env var.")
@@ -225,32 +224,15 @@ class EstatClient:
 
         data = await self._get_json(url, params)
 
-        result: list[StatsTable] = []
         datalist = (
             data.get("GET_STATS_LIST", {})
             .get("DATALIST_INF", {})
             .get("TABLE_INF", [])
         )
-        for item in _ensure_list(datalist):
-            gov_org = item.get("GOV_ORG", {})
-            stat_name_obj = item.get("STAT_NAME", {})
-            title = item.get("TITLE", {})
-            table = StatsTable(
-                id=str(item.get("@id", "")),
-                name=title.get("$", "") if isinstance(title, dict) else str(title),
-                gov_code=(
-                    stat_name_obj.get("@code")
-                    if isinstance(stat_name_obj, dict)
-                    else None
-                ),
-                survey_date=str(item.get("SURVEY_DATE", "")) or None,
-                open_date=item.get("OPEN_DATE"),
-                organization=(
-                    gov_org.get("$") if isinstance(gov_org, dict) else None
-                ),
-                statistics_name=item.get("STATISTICS_NAME"),
-            )
-            result.append(table)
+        result = [
+            StatsTable.from_api_response(item)
+            for item in _ensure_list(datalist)
+        ]
 
         logger.info(f"Found {len(result)} statistical tables")
         return result
@@ -337,9 +319,9 @@ class EstatClient:
             params["cdArea"] = cd_area
         if cd_cat01:
             params["cdCat01"] = cd_cat01
-        if start_position:
+        if start_position is not None:
             params["startPosition"] = start_position
-        if limit:
+        if limit is not None:
             params["limit"] = limit
 
         params = self._build_params(params)
@@ -449,7 +431,11 @@ class EstatClient:
             logger.debug(f"Fetching page {pages_fetched + 1} (start_position={start_position})")
 
         if pages_fetched >= max_pages and start_position is not None:
-            logger.warning(f"Reached max_pages ({max_pages}). {len(all_values)}/{total_count} records fetched.")
+            fetched = len(all_values)
+            logger.warning(
+                f"Reached max_pages ({max_pages}). "
+                f"{fetched}/{total_count} records fetched."
+            )
 
         return StatsData(
             stats_id=stats_id,
@@ -464,7 +450,7 @@ class EstatClient:
         dataset_id: str | None = None,
         **filters: str,
     ) -> DataSet:
-        url = f"{self._base_url.replace('/json/', '/')}postDataset"
+        url = f"{_BASE_URL_FORM}postDataset"
         params: dict[str, Any] = {"statsDataId": stats_id}
 
         if dataset_id:
@@ -478,6 +464,7 @@ class EstatClient:
         resp.raise_for_status()
 
         data = resp.json()
+        self._check_api_status(data)
         result = data.get("result", {})
 
         return DataSet(

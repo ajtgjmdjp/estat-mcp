@@ -158,15 +158,25 @@ async def get_statistic_data(
     ],
     limit: Annotated[
         int,
-        Field(description="Maximum records to fetch (default: 1000, max: 100000)", ge=1, le=100000),
+        Field(
+            description="Maximum records to fetch (default: 1000)",
+            ge=1,
+            le=100000,
+        ),
     ] = 1000,
     start_position: Annotated[
         int | None,
-        Field(description="Start position for pagination (データ取得開始位置). Use next_key from previous response."),
+        Field(
+            description="Start position for pagination. "
+            "Use next_key from previous response.",
+        ),
     ] = None,
     cd_tab: Annotated[
         str | None,
-        Field(description="Filter by table item code (表章事項コード). Example: '110' for population"),
+        Field(
+            description="Filter by table item code. "
+            "Example: '110' for population",
+        ),
     ] = None,
     cd_time: Annotated[
         str | None,
@@ -182,7 +192,10 @@ async def get_statistic_data(
     ] = None,
     lv_tab: Annotated[
         str | None,
-        Field(description="Table item hierarchy level (表章事項階層レベル). Example: '1' or '1-2'"),
+        Field(
+            description="Table item hierarchy level. "
+            "Example: '1' or '1-2'",
+        ),
     ] = None,
     lv_time: Annotated[
         str | None,
@@ -252,7 +265,11 @@ async def get_all_statistic_data(
     ],
     max_pages: Annotated[
         int,
-        Field(description="Maximum number of pages to fetch (safety limit, default: 10)", ge=1, le=50),
+        Field(
+            description="Maximum pages to fetch (safety limit, default: 10)",
+            ge=1,
+            le=50,
+        ),
     ] = 10,
     cd_tab: Annotated[
         str | None,
@@ -326,5 +343,10 @@ async def get_all_statistic_data(
             for v in data.values[:100]  # Limit output size for MCP
         ],
         "has_more": data.next_key is not None,
-        "note": "First 100 records shown. Use get_statistic_data with start_position for more." if len(data.values) > 100 else None,
+        "note": (
+            "First 100 records shown. "
+            "Use get_statistic_data with start_position for more."
+            if len(data.values) > 100
+            else None
+        ),
     }
