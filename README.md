@@ -1,5 +1,6 @@
 # estat-mcp
 
+[![PyPI](https://img.shields.io/pypi/v/estat-mcp)](https://pypi.org/project/estat-mcp/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -183,14 +184,11 @@ all_data = await client.get_all_data(
 print(f"Fetched {len(all_data.values)} / {all_data.total_count} records")
 ```
 
-### Polars / Pandas Export
+### Polars Export
 
 ```python
-# Polars (default)
+# Requires: pip install estat-mcp[polars]
 df = data.to_polars()
-
-# pandas (requires: pip install estat-mcp[pandas])
-df = data.to_pandas()
 ```
 
 ## CLI Reference
@@ -291,8 +289,7 @@ for v in data.values:
 
 # Export
 json_data = data.to_dicts()     # list[dict]
-df = data.to_polars()           # polars.DataFrame
-df = data.to_pandas()           # pandas.DataFrame
+df = data.to_polars()           # polars.DataFrame (requires polars)
 ```
 
 ### Response Format
