@@ -344,7 +344,13 @@ estat-mcp/
 
 This project uses data from [e-Stat](https://www.e-stat.go.jp/) (政府統計の総合窓口),
 operated by the Statistics Bureau of Japan (総務省統計局).
-e-Stat data is provided as open government data.
+e-Stat data is provided under terms compatible with [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+**出典**: 政府統計の総合窓口(e-Stat)（https://www.e-stat.go.jp/）
+
+> このサービスは、政府統計総合窓口(e-Stat)のAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。
+>
+> This service uses the API of the Portal Site of Official Statistics of Japan (e-Stat). The content of this service is not guaranteed by the Japanese government.
 
 ## Related Projects
 

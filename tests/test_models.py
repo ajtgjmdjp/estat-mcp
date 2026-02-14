@@ -115,7 +115,6 @@ class TestStatsData:
         assert dicts[0]["value"] == 100
         assert dicts[0]["table"] == "110"
 
-
     def test_stats_data_to_polars(self) -> None:
         """Test converting StatsData to Polars DataFrame."""
         import polars as pl

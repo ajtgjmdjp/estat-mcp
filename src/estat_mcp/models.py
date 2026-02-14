@@ -57,16 +57,10 @@ class StatsTable(BaseModel):
         name = title.get("$", "") if isinstance(title, dict) else str(title) if title else ""
 
         stat_name_obj = data.get("STAT_NAME", {})
-        gov_code = (
-            stat_name_obj.get("@code")
-            if isinstance(stat_name_obj, dict)
-            else None
-        )
+        gov_code = stat_name_obj.get("@code") if isinstance(stat_name_obj, dict) else None
 
         gov_org = data.get("GOV_ORG", {})
-        organization = (
-            gov_org.get("$") if isinstance(gov_org, dict) else None
-        )
+        organization = gov_org.get("$") if isinstance(gov_org, dict) else None
 
         return cls(
             id=str(data.get("@id", "")),

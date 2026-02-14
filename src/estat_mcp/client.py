@@ -147,9 +147,7 @@ class EstatClient:
             params.update(extra)
         return params
 
-    async def _request_with_retry(
-        self, url: str, params: dict[str, Any]
-    ) -> httpx.Response:
+    async def _request_with_retry(self, url: str, params: dict[str, Any]) -> httpx.Response:
         last_exc: BaseException | None = None
         max_retries = 3
 
@@ -224,15 +222,8 @@ class EstatClient:
 
         data = await self._get_json(url, params)
 
-        datalist = (
-            data.get("GET_STATS_LIST", {})
-            .get("DATALIST_INF", {})
-            .get("TABLE_INF", [])
-        )
-        result = [
-            StatsTable.from_api_response(item)
-            for item in _ensure_list(datalist)
-        ]
+        datalist = data.get("GET_STATS_LIST", {}).get("DATALIST_INF", {}).get("TABLE_INF", [])
+        result = [StatsTable.from_api_response(item) for item in _ensure_list(datalist)]
 
         logger.info(f"Found {len(result)} statistical tables")
         return result
@@ -433,8 +424,7 @@ class EstatClient:
         if pages_fetched >= max_pages and start_position is not None:
             fetched = len(all_values)
             logger.warning(
-                f"Reached max_pages ({max_pages}). "
-                f"{fetched}/{total_count} records fetched."
+                f"Reached max_pages ({max_pages}). {fetched}/{total_count} records fetched."
             )
 
         return StatsData(

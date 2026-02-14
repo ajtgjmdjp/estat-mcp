@@ -99,9 +99,7 @@ def search(keyword: str, limit: int, fmt: str) -> None:
 @click.option("--cd-tab", default=None, help="Filter by table item code (表章事項コード).")
 @click.option("--cd-time", default=None, help="Filter by time code (時間軸事項コード).")
 @click.option("--cd-area", default=None, help="Filter by area code (地域事項コード).")
-@click.option(
-    "--cd-cat01", default=None, help="Filter by classification code 01."
-)
+@click.option("--cd-cat01", default=None, help="Filter by classification code 01.")
 def data(
     stats_id: str,
     limit: int,

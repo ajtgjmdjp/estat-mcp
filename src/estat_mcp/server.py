@@ -167,15 +167,13 @@ async def get_statistic_data(
     start_position: Annotated[
         int | None,
         Field(
-            description="Start position for pagination. "
-            "Use next_key from previous response.",
+            description="Start position for pagination. Use next_key from previous response.",
         ),
     ] = None,
     cd_tab: Annotated[
         str | None,
         Field(
-            description="Filter by table item code. "
-            "Example: '110' for population",
+            description="Filter by table item code. Example: '110' for population",
         ),
     ] = None,
     cd_time: Annotated[
@@ -193,8 +191,7 @@ async def get_statistic_data(
     lv_tab: Annotated[
         str | None,
         Field(
-            description="Table item hierarchy level. "
-            "Example: '1' or '1-2'",
+            description="Table item hierarchy level. Example: '1' or '1-2'",
         ),
     ] = None,
     lv_time: Annotated[
@@ -344,8 +341,7 @@ async def get_all_statistic_data(
         ],
         "has_more": data.next_key is not None,
         "note": (
-            "First 100 records shown. "
-            "Use get_statistic_data with start_position for more."
+            "First 100 records shown. Use get_statistic_data with start_position for more."
             if len(data.values) > 100
             else None
         ),
