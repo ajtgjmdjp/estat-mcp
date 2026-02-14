@@ -3,6 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/estat-mcp)](https://pypi.org/project/estat-mcp/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![ClawHub](https://img.shields.io/badge/ClawHub-estat--mcp-orange)](https://clawhub.com/skills/estat-mcp)
 
 [e-Stat](https://www.e-stat.go.jp/) (政府統計の総合窓口) API client and MCP server for Japanese government statistics.
 
