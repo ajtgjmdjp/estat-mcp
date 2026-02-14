@@ -1,0 +1,192 @@
+"""MCP server exposing e-Stat tools to LLMs via FastMCP.
+
+This module defines the MCP (Model Context Protocol) server that allows
+AI assistants like Claude to search Japanese government statistics,
+retrieve metadata, and fetch statistical data through the e-Stat API.
+
+Usage with Claude Desktop (add to ``claude_desktop_config.json``)::
+
+    {
+      "mcpServers": {
+        "estat": {
+          "command": "uvx",
+          "args": ["estat-mcp", "serve"]
+        }
+      }
+    }
+"""
+
+from __future__ import annotations
+
+import asyncio
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Annotated, Any
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+from fastmcp import FastMCP
+from pydantic import Field
+
+from estat_mcp.client import EstatClient
+
+# Lazily initialized client with lock for concurrent-safe access
+_client: EstatClient | None = None
+_client_lock = asyncio.Lock()
+
+
+async def _get_client() -> EstatClient:
+    """Return the shared EstatClient, creating it on first call.
+
+    Uses double-checked locking to avoid race conditions when
+    multiple MCP tool calls arrive concurrently.
+    """
+    global _client
+    if _client is not None:
+        return _client
+    async with _client_lock:
+        if _client is None:
+            _client = EstatClient()
+    return _client
+
+
+@asynccontextmanager
+async def _lifespan(server: FastMCP[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
+    """Manage EstatClient lifecycle — close httpx.AsyncClient on shutdown."""
+    yield {}
+    if _client is not None:
+        await _client.close()
+
+
+mcp = FastMCP(
+    name="e-Stat",
+    lifespan=_lifespan,
+    instructions=(
+        "e-Stat MCP server provides tools for accessing Japanese government "
+        "statistics from the e-Stat portal (政府統計の総合窓口).\n\n"
+        "You can search for statistical tables by keyword, retrieve metadata "
+        "to understand table structure, and fetch actual statistical data.\n\n"
+        "Key tools:\n"
+        "- search_statistics: Find statistical tables by keyword\n"
+        "- get_statistic_meta: Get table structure (dimensions, codes)\n"
+        "- get_statistic_data: Fetch actual data values\n\n"
+        "e-Stat contains data on:\n"
+        "- Population and demographics (人口統計)\n"
+        "- Economic indicators (GDP, CPI, trade)\n"
+        "- Industry and business statistics\n"
+        "- Agriculture, labor, and social statistics\n"
+        "- Regional and municipal data\n\n"
+        "Note: An e-Stat appId is required. Get one at:\n"
+        "https://www.e-stat.go.jp/api/api-info/use-api"
+    ),
+)
+
+
+@mcp.tool()
+async def search_statistics(
+    keyword: Annotated[
+        str,
+        Field(description="Search keyword (Japanese). Example: '人口' (population)"),
+    ],
+    limit: Annotated[
+        int,
+        Field(description="Maximum number of results (default: 20)", ge=1, le=100),
+    ] = 20,
+) -> list[dict[str, Any]]:
+    """Search for statistical tables by keyword.
+
+    Returns metadata for matching tables including ID, name, and organization.
+    Use the table ID with get_statistic_meta or get_statistic_data.
+
+    Example: search_statistics("人口") → population statistics tables
+    """
+    client = await _get_client()
+    tables = await client.search_stats(keyword, limit=limit)
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "gov_code": t.gov_code,
+            "organization": t.organization,
+            "survey_date": t.survey_date,
+        }
+        for t in tables
+    ]
+
+
+@mcp.tool()
+async def get_statistic_meta(
+    stats_id: Annotated[
+        str,
+        Field(description="Statistics table ID from search_statistics"),
+    ],
+) -> dict[str, Any]:
+    """Get metadata for a statistical table.
+
+    Returns the table structure including:
+    - Table items (表章事項): Column headers
+    - Classification items (分類事項): Category dimensions
+    - Time items (時間軸事項): Time periods available
+    - Area items (地域事項): Geographic areas
+
+    Use this to understand what dimensions and codes are available
+    before fetching data with get_statistic_data.
+    """
+    client = await _get_client()
+    meta = await client.get_meta(stats_id)
+
+    return {
+        "stats_id": meta.stats_id,
+        "table_items": [
+            {"code": i.code, "name": i.name, "level": i.level, "unit": i.unit}
+            for i in meta.table_items
+        ],
+        "classification_items": {
+            k: [{"code": i.code, "name": i.name} for i in v]
+            for k, v in meta.classification_items.items()
+        },
+        "time_items": [{"code": i.code, "name": i.name} for i in meta.time_items],
+        "area_items": [{"code": i.code, "name": i.name} for i in meta.area_items],
+    }
+
+
+@mcp.tool()
+async def get_statistic_data(
+    stats_id: Annotated[
+        str,
+        Field(description="Statistics table ID"),
+    ],
+    limit: Annotated[
+        int,
+        Field(description="Maximum records to fetch (default: 1000, max: 100000)", ge=1, le=100000),
+    ] = 1000,
+) -> dict[str, Any]:
+    """Fetch statistical data for a table.
+
+    Returns the actual data values with their dimensions (time, area, classifications).
+    For large tables, use a smaller limit first to preview the data.
+
+    The response includes:
+    - values: List of data points with their dimension codes
+    - total_count: Total number of records (may exceed limit)
+    - next_key: Pagination key if more data is available
+    """
+    client = await _get_client()
+    data = await client.get_data(stats_id, limit=limit)
+
+    return {
+        "stats_id": data.stats_id,
+        "total_count": data.total_count,
+        "values": [
+            {
+                "value": v.value,
+                "table_code": v.table_code,
+                "time_code": v.time_code,
+                "area_code": v.area_code,
+                **v.classification_codes,
+            }
+            for v in data.values[:100]  # Limit output size for MCP
+        ],
+        "has_more": data.next_key is not None,
+        "next_key": data.next_key,
+    }
