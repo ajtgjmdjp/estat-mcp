@@ -53,9 +53,11 @@ async def _get_client() -> EstatClient:
 @asynccontextmanager
 async def _lifespan(server: FastMCP[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
     """Manage EstatClient lifecycle — close httpx.AsyncClient on shutdown."""
+    global _client
     yield {}
     if _client is not None:
         await _client.close()
+        _client = None
 
 
 mcp = FastMCP(

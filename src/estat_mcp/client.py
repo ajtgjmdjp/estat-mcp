@@ -1,3 +1,5 @@
+# Data source: e-Stat (https://www.e-stat.go.jp/) — CC BY 4.0
+# Attribution: 政府統計の総合窓口(e-Stat)
 """High-level async e-Stat API client.
 
 This is the primary public interface of estat-mcp. All e-Stat operations —
