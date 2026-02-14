@@ -361,3 +361,52 @@ class TestGetDataParsing:
         for v in data.values:
             assert v.value is None
         await client.close()
+
+
+class TestAPIStatusCheck:
+    """Tests for e-Stat API application-level error detection."""
+
+    def test_check_api_status_success(self) -> None:
+        client = EstatClient(app_id="test")
+        # STATUS 0 = success, should not raise
+        data = {"GET_STATS_LIST": {"RESULT": {"STATUS": 0, "DATE": "2026-01-01"}}}
+        client._check_api_status(data)
+
+    def test_check_api_status_auth_error(self) -> None:
+        client = EstatClient(app_id="test")
+        data = {
+            "GET_STATS_LIST": {
+                "RESULT": {
+                    "STATUS": 100,
+                    "ERROR_MSG": "認証に失敗しました。",
+                }
+            }
+        }
+        with pytest.raises(EstatAPIError, match="認証に失敗しました"):
+            client._check_api_status(data)
+
+    def test_check_api_status_generic_error(self) -> None:
+        client = EstatClient(app_id="test")
+        data = {
+            "GET_STATS_DATA": {
+                "RESULT": {
+                    "STATUS": 1,
+                }
+            }
+        }
+        with pytest.raises(EstatAPIError, match="API error"):
+            client._check_api_status(data)
+
+    def test_check_api_status_no_result(self) -> None:
+        client = EstatClient(app_id="test")
+        # No RESULT key — should not raise
+        data = {"GET_STATS_LIST": {"DATALIST_INF": {}}}
+        client._check_api_status(data)
+
+    def test_env_var_fallback(self) -> None:
+        """EstatClient reads ESTAT_APP_ID from env when no app_id given."""
+        import os
+
+        with patch.dict(os.environ, {"ESTAT_APP_ID": "env_test_key"}):
+            client = EstatClient()
+            assert client._app_id == "env_test_key"

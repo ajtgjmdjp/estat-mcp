@@ -116,7 +116,9 @@ class EstatClient:
         timeout: float = _DEFAULT_TIMEOUT,
         rate_limit: float = _DEFAULT_RATE_LIMIT,
     ) -> None:
-        self._app_id = app_id
+        import os
+
+        self._app_id = app_id or os.environ.get("ESTAT_APP_ID")
         if not self._app_id:
             logger.warning("No app_id provided. Set app_id or ESTAT_APP_ID env var.")
 
@@ -177,7 +179,23 @@ class EstatClient:
         raise last_exc  # type: ignore[misc]
 
     async def _get_json(self, url: str, params: dict[str, Any]) -> Any:
-        return (await self._request_with_retry(url, params)).json()
+        data = (await self._request_with_retry(url, params)).json()
+        self._check_api_status(data)
+        return data
+
+    def _check_api_status(self, data: Any) -> None:
+        """Check e-Stat API response for application-level errors.
+
+        e-Stat returns HTTP 200 even for errors like invalid appId.
+        Errors are indicated by STATUS != 0 in the RESULT object.
+        """
+        for key in data:
+            result = data[key].get("RESULT") if isinstance(data[key], dict) else None
+            if result and isinstance(result, dict):
+                status = result.get("STATUS")
+                if status is not None and status != 0:
+                    error_msg = result.get("ERROR_MSG", f"API error (status={status})")
+                    raise EstatAPIError(error_msg)
 
     async def search_stats(
         self,
