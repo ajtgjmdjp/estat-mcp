@@ -123,6 +123,59 @@ class TestStatsData:
         assert dicts[0]["table"] == "110"
 
 
+    def test_stats_data_to_polars(self) -> None:
+        """Test converting StatsData to Polars DataFrame."""
+        import polars as pl
+
+        data = StatsData(
+            stats_id="0003410379",
+            total_count=3,
+            values=[
+                DataValue(
+                    value=1000,
+                    table_code="110",
+                    time_code="2024000",
+                    area_code="13000",
+                    classification_codes={"cat01": "100"},
+                ),
+                DataValue(
+                    value=2000,
+                    table_code="110",
+                    time_code="2023000",
+                    area_code="13000",
+                    classification_codes={"cat01": "100"},
+                ),
+                DataValue(
+                    value=None,
+                    table_code="120",
+                    time_code="2024000",
+                    area_code="14000",
+                    classification_codes={"cat01": "200"},
+                ),
+            ],
+        )
+        df = data.to_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert len(df) == 3
+        assert "value" in df.columns
+        assert "table_code" in df.columns
+        assert "time_code" in df.columns
+        assert "area_code" in df.columns
+        assert "cat01" in df.columns
+        assert df["value"][0] == 1000
+        assert df["area_code"][1] == "13000"
+        assert df["cat01"][2] == "200"
+
+    def test_stats_data_to_polars_empty(self) -> None:
+        """Test to_polars with empty values."""
+        import polars as pl
+
+        data = StatsData(stats_id="0003410379", total_count=0)
+        df = data.to_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert len(df) == 0
+
+
 class TestMetaItem:
     def test_meta_item_creation(self) -> None:
         """Test MetaItem creation."""
@@ -156,3 +209,68 @@ class TestDataSet:
         assert dataset.id == "00200511-20240101120000-0"
         assert dataset.stats_id == "0003410379"
         assert dataset.name == "人口推計_東京"
+
+
+class TestStatsDataPolars:
+    """Tests for StatsData Polars conversion."""
+
+    def test_to_polars(self) -> None:
+        """Test converting StatsData to Polars DataFrame."""
+        import polars as pl
+
+        data = StatsData(
+            stats_id="0003410379",
+            values=[
+                DataValue(
+                    value=125000000,
+                    table_code="110",
+                    time_code="2024000",
+                    area_code="00000",
+                    classification_codes={"cat01": "100"},
+                ),
+                DataValue(
+                    value=61000000,
+                    table_code="110",
+                    time_code="2024000",
+                    area_code="13000",
+                    classification_codes={"cat01": "110"},
+                ),
+            ],
+        )
+
+        df = data.to_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert len(df) == 2
+        assert "value" in df.columns
+        assert "table_code" in df.columns
+        assert "time_code" in df.columns
+        assert "area_code" in df.columns
+        assert "cat01" in df.columns
+        assert df["value"].to_list() == [125000000, 61000000]
+
+    def test_to_polars_empty(self) -> None:
+        """Test converting empty StatsData to Polars DataFrame."""
+        import polars as pl
+
+        data = StatsData(stats_id="0003410379", values=[])
+        df = data.to_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert len(df) == 0
+
+    def test_to_polars_no_classification(self) -> None:
+        """Test converting StatsData without classification codes."""
+        import polars as pl
+
+        data = StatsData(
+            stats_id="0003410379",
+            values=[
+                DataValue(value=100, table_code="110"),
+                DataValue(value=200, table_code="120"),
+            ],
+        )
+
+        df = data.to_polars()
+        assert isinstance(df, pl.DataFrame)
+        assert len(df) == 2
+        assert df["value"].to_list() == [100, 200]
+        assert df["table_code"].to_list() == ["110", "120"]

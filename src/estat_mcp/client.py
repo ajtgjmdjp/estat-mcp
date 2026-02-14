@@ -293,6 +293,7 @@ class EstatClient:
         cd_time: str | None = None,
         lv_area: str | None = None,
         cd_area: str | None = None,
+        cd_cat01: str | None = None,
         start_position: int | None = None,
         limit: int = 100000,
     ) -> StatsData:
@@ -316,6 +317,8 @@ class EstatClient:
             params["lvArea"] = lv_area
         if cd_area:
             params["cdArea"] = cd_area
+        if cd_cat01:
+            params["cdCat01"] = cd_cat01
         if start_position:
             params["startPosition"] = start_position
         if limit:
@@ -358,6 +361,83 @@ class EstatClient:
             total_count=total_count,
             values=values,
             next_key=next_key,
+        )
+
+    async def get_all_data(
+        self,
+        stats_id: str,
+        *,
+        max_pages: int = 10,
+        dataset_id: str | None = None,
+        lv_tab: str | None = None,
+        cd_tab: str | None = None,
+        lv_time: str | None = None,
+        cd_time: str | None = None,
+        lv_area: str | None = None,
+        cd_area: str | None = None,
+        cd_cat01: str | None = None,
+        limit: int = 100000,
+    ) -> StatsData:
+        """Fetch all statistical data with automatic pagination.
+
+        Automatically follows next_key to fetch all pages until either:
+        - No more pages (next_key is None)
+        - max_pages limit is reached
+
+        Args:
+            stats_id: Statistics table ID.
+            max_pages: Maximum number of pages to fetch (safety limit).
+            dataset_id: Dataset ID (if using registered dataset).
+            lv_tab: Table item level filter.
+            cd_tab: Table item code filter.
+            lv_time: Time axis level filter.
+            cd_time: Time code filter.
+            lv_area: Area level filter.
+            cd_area: Area code filter.
+            cd_cat01: Classification code 01 filter.
+            limit: Records per page (default: 100000).
+
+        Returns:
+            StatsData with all values from all pages merged.
+        """
+        all_values: list[DataValue] = []
+        start_position: int | None = None
+        total_count = 0
+        pages_fetched = 0
+
+        while pages_fetched < max_pages:
+            page = await self.get_data(
+                stats_id,
+                dataset_id=dataset_id,
+                lv_tab=lv_tab,
+                cd_tab=cd_tab,
+                lv_time=lv_time,
+                cd_time=cd_time,
+                lv_area=lv_area,
+                cd_area=cd_area,
+                cd_cat01=cd_cat01,
+                start_position=start_position,
+                limit=limit,
+            )
+
+            all_values.extend(page.values)
+            total_count = page.total_count
+            pages_fetched += 1
+
+            if page.next_key is None:
+                break
+
+            start_position = int(page.next_key)
+            logger.debug(f"Fetching page {pages_fetched + 1} (start_position={start_position})")
+
+        if pages_fetched >= max_pages and start_position is not None:
+            logger.warning(f"Reached max_pages ({max_pages}). {len(all_values)}/{total_count} records fetched.")
+
+        return StatsData(
+            stats_id=stats_id,
+            total_count=total_count,
+            values=all_values,
+            next_key=str(start_position) if pages_fetched >= max_pages else None,
         )
 
     async def register_dataset(

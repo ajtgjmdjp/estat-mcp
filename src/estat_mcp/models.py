@@ -206,6 +206,41 @@ class StatsData(BaseModel):
             result.append(d)
         return result
 
+    def to_polars(self) -> Any:
+        """Convert to a Polars DataFrame.
+
+        Requires polars to be installed (pip install estat-mcp[polars]).
+
+        Returns a DataFrame with columns: value, table_code, time_code,
+        area_code, and one column per classification code key.
+
+        Raises:
+            ImportError: If polars is not installed.
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise ImportError(
+                "polars is required for to_polars(). "
+                "Install it with: pip install estat-mcp[polars]"
+            ) from None
+
+        if not self.values:
+            return pl.DataFrame()
+
+        rows: list[dict[str, Any]] = []
+        for v in self.values:
+            row: dict[str, Any] = {
+                "value": v.value,
+                "table_code": v.table_code,
+                "time_code": v.time_code,
+                "area_code": v.area_code,
+            }
+            row.update(v.classification_codes)
+            rows.append(row)
+
+        return pl.DataFrame(rows)
+
 
 # ---------------------------------------------------------------------------
 # DataSet

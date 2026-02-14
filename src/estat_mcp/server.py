@@ -69,7 +69,7 @@ mcp = FastMCP(
         "Key tools:\n"
         "- search_statistics: Find statistical tables by keyword\n"
         "- get_statistic_meta: Get table structure (dimensions, codes)\n"
-        "- get_statistic_data: Fetch actual data values\n\n"
+        "- get_statistic_data: Fetch actual data values with filtering\n\n"
         "e-Stat contains data on:\n"
         "- Population and demographics (人口統計)\n"
         "- Economic indicators (GDP, CPI, trade)\n"
@@ -160,19 +160,71 @@ async def get_statistic_data(
         int,
         Field(description="Maximum records to fetch (default: 1000, max: 100000)", ge=1, le=100000),
     ] = 1000,
+    start_position: Annotated[
+        int | None,
+        Field(description="Start position for pagination (データ取得開始位置). Use next_key from previous response."),
+    ] = None,
+    cd_tab: Annotated[
+        str | None,
+        Field(description="Filter by table item code (表章事項コード). Example: '110' for population"),
+    ] = None,
+    cd_time: Annotated[
+        str | None,
+        Field(description="Filter by time code (時間軸事項コード). Example: '2024000' for 2024"),
+    ] = None,
+    cd_area: Annotated[
+        str | None,
+        Field(description="Filter by area code (地域事項コード). Example: '13000' for Tokyo"),
+    ] = None,
+    cd_cat01: Annotated[
+        str | None,
+        Field(description="Filter by classification code 01 (分類事項01コード)"),
+    ] = None,
+    lv_tab: Annotated[
+        str | None,
+        Field(description="Table item hierarchy level (表章事項階層レベル). Example: '1' or '1-2'"),
+    ] = None,
+    lv_time: Annotated[
+        str | None,
+        Field(description="Time axis hierarchy level (時間軸事項階層レベル)"),
+    ] = None,
+    lv_area: Annotated[
+        str | None,
+        Field(description="Area hierarchy level (地域事項階層レベル)"),
+    ] = None,
 ) -> dict[str, Any]:
-    """Fetch statistical data for a table.
+    """Fetch statistical data for a table with optional filtering and pagination.
 
     Returns the actual data values with their dimensions (time, area, classifications).
-    For large tables, use a smaller limit first to preview the data.
+    For large tables, use filters to narrow down results before fetching.
+
+    Pagination:
+    - Use start_position to continue from a previous request
+    - Check has_more and next_key in the response for more data
+
+    Filter parameters:
+    - cd_tab/cd_time/cd_area/cd_cat01: Filter by specific codes
+    - lv_tab/lv_time/lv_area: Filter by hierarchy level (e.g., "1" or "1-3")
 
     The response includes:
     - values: List of data points with their dimension codes
     - total_count: Total number of records (may exceed limit)
-    - next_key: Pagination key if more data is available
+    - has_more: Whether more data is available
+    - next_key: Pagination key for the next page
     """
     client = await _get_client()
-    data = await client.get_data(stats_id, limit=limit)
+    data = await client.get_data(
+        stats_id,
+        limit=limit,
+        start_position=start_position,
+        cd_tab=cd_tab,
+        cd_time=cd_time,
+        cd_area=cd_area,
+        cd_cat01=cd_cat01,
+        lv_tab=lv_tab,
+        lv_time=lv_time,
+        lv_area=lv_area,
+    )
 
     return {
         "stats_id": data.stats_id,
@@ -189,4 +241,90 @@ async def get_statistic_data(
         ],
         "has_more": data.next_key is not None,
         "next_key": data.next_key,
+    }
+
+
+@mcp.tool()
+async def get_all_statistic_data(
+    stats_id: Annotated[
+        str,
+        Field(description="Statistics table ID"),
+    ],
+    max_pages: Annotated[
+        int,
+        Field(description="Maximum number of pages to fetch (safety limit, default: 10)", ge=1, le=50),
+    ] = 10,
+    cd_tab: Annotated[
+        str | None,
+        Field(description="Filter by table item code (表章事項コード)"),
+    ] = None,
+    cd_time: Annotated[
+        str | None,
+        Field(description="Filter by time code (時間軸事項コード)"),
+    ] = None,
+    cd_area: Annotated[
+        str | None,
+        Field(description="Filter by area code (地域事項コード)"),
+    ] = None,
+    cd_cat01: Annotated[
+        str | None,
+        Field(description="Filter by classification code 01 (分類事項01コード)"),
+    ] = None,
+    lv_tab: Annotated[
+        str | None,
+        Field(description="Table item hierarchy level (表章事項階層レベル)"),
+    ] = None,
+    lv_time: Annotated[
+        str | None,
+        Field(description="Time axis hierarchy level (時間軸事項階層レベル)"),
+    ] = None,
+    lv_area: Annotated[
+        str | None,
+        Field(description="Area hierarchy level (地域事項階層レベル)"),
+    ] = None,
+) -> dict[str, Any]:
+    """Fetch all statistical data with automatic pagination.
+
+    Automatically follows next_key to fetch all pages until either:
+    - No more pages (next_key is None)
+    - max_pages limit is reached (safety limit)
+
+    Use this for smaller datasets or when you need complete data.
+    For large datasets, use get_statistic_data with manual pagination.
+
+    Returns:
+    - values: Sample of data (first 100 records from all pages)
+    - total_count: Total number of records across all pages
+    - fetched_count: Number of records actually fetched
+    - has_more: Whether max_pages was reached before fetching all data
+    """
+    client = await _get_client()
+    data = await client.get_all_data(
+        stats_id,
+        max_pages=max_pages,
+        cd_tab=cd_tab,
+        cd_time=cd_time,
+        cd_area=cd_area,
+        cd_cat01=cd_cat01,
+        lv_tab=lv_tab,
+        lv_time=lv_time,
+        lv_area=lv_area,
+    )
+
+    return {
+        "stats_id": data.stats_id,
+        "total_count": data.total_count,
+        "fetched_count": len(data.values),
+        "values": [
+            {
+                "value": v.value,
+                "table_code": v.table_code,
+                "time_code": v.time_code,
+                "area_code": v.area_code,
+                **v.classification_codes,
+            }
+            for v in data.values[:100]  # Limit output size for MCP
+        ],
+        "has_more": data.next_key is not None,
+        "note": "First 100 records shown. Use get_statistic_data with start_position for more." if len(data.values) > 100 else None,
     }
