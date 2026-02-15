@@ -26,9 +26,17 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 from fastmcp import FastMCP
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 
 from estat_mcp.client import EstatClient
+
+
+def _coerce_str(v: Any) -> str | None:
+    """Coerce int to str — MCP clients may send numeric values as int."""
+    if v is None:
+        return None
+    return str(v)
+
 
 # Lazily initialized client with lock for concurrent-safe access
 _client: EstatClient | None = None
@@ -120,6 +128,7 @@ async def search_statistics(
 async def get_statistic_meta(
     stats_id: Annotated[
         str,
+        BeforeValidator(_coerce_str),
         Field(description="Statistics table ID from search_statistics"),
     ],
 ) -> dict[str, Any]:
@@ -156,6 +165,7 @@ async def get_statistic_meta(
 async def get_statistic_data(
     stats_id: Annotated[
         str,
+        BeforeValidator(_coerce_str),
         Field(description="Statistics table ID"),
     ],
     limit: Annotated[
@@ -260,6 +270,7 @@ async def get_statistic_data(
 async def get_all_statistic_data(
     stats_id: Annotated[
         str,
+        BeforeValidator(_coerce_str),
         Field(description="Statistics table ID"),
     ],
     max_pages: Annotated[

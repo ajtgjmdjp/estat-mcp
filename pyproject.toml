@@ -1,6 +1,6 @@
 [project]
 name = "estat-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "e-Stat API client and MCP server for Japanese government statistics"
 readme = "README.md"
 license = "Apache-2.0"
