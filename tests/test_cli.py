@@ -58,7 +58,8 @@ class TestVersionCommand:
         result = runner.invoke(cli, ["version"])
         assert result.exit_code == 0
         assert "estat-mcp" in result.output
-        assert "0.2.2" in result.output
+        from estat_mcp import __version__
+        assert __version__ in result.output
 
 
 class TestServeCommand:
