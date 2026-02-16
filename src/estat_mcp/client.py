@@ -298,20 +298,20 @@ class EstatClient:
         else:
             params["statsDataId"] = stats_id
 
-        if lv_tab:
-            params["lvTab"] = lv_tab
-        if cd_tab:
-            params["cdTab"] = cd_tab
-        if lv_time:
-            params["lvTime"] = lv_time
-        if cd_time:
-            params["cdTime"] = cd_time
-        if lv_area:
-            params["lvArea"] = lv_area
-        if cd_area:
-            params["cdArea"] = cd_area
-        if cd_cat01:
-            params["cdCat01"] = cd_cat01
+        # Map optional filter params — skip "null" strings (LLM hallucination)
+        _optional = {
+            "lvTab": lv_tab,
+            "cdTab": cd_tab,
+            "lvTime": lv_time,
+            "cdTime": cd_time,
+            "lvArea": lv_area,
+            "cdArea": cd_area,
+            "cdCat01": cd_cat01,
+        }
+        for key, val in _optional.items():
+            if val and val.lower() != "null":
+                params[key] = val
+
         if start_position is not None:
             params["startPosition"] = start_position
         if limit is not None:

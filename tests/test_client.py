@@ -436,3 +436,59 @@ class TestAPIStatusCheck:
         with patch.dict(os.environ, {"ESTAT_APP_ID": "env_test_key"}):
             client = EstatClient()
             assert client._app_id == "env_test_key"
+
+
+class TestNullStringSanitization:
+    """LLMs sometimes pass literal 'null' for optional parameters."""
+
+    @pytest.mark.asyncio
+    async def test_null_string_cd_cat01_ignored(self) -> None:
+        """cd_cat01='null' should be treated as None (not sent to API)."""
+        mock_response = {
+            "GET_STATS_DATA": {
+                "RESULT": {"STATUS": 0},
+                "STATISTICAL_DATA": {
+                    "RESULT_INF": {"TOTAL_NUMBER": 1},
+                    "DATA_INF": {
+                        "VALUE": [
+                            {"@tab": "00001", "@time": "2024000", "@area": "00000", "$": "100"},
+                        ],
+                    },
+                },
+            }
+        }
+
+        client = EstatClient(app_id="test")
+        with patch.object(
+            client, "_get_json", new_callable=AsyncMock, return_value=mock_response
+        ) as mock_json:
+            await client.get_data("test_id", cd_cat01="null")
+
+        # "null" should NOT appear in the params sent to _get_json
+        call_params = mock_json.call_args[0][1]
+        assert "cdCat01" not in call_params
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_null_string_uppercase_ignored(self) -> None:
+        """cd_cat01='NULL' (uppercase) should also be ignored."""
+        mock_response = {
+            "GET_STATS_DATA": {
+                "RESULT": {"STATUS": 0},
+                "STATISTICAL_DATA": {
+                    "RESULT_INF": {"TOTAL_NUMBER": 0},
+                    "DATA_INF": {"VALUE": []},
+                },
+            }
+        }
+
+        client = EstatClient(app_id="test")
+        with patch.object(
+            client, "_get_json", new_callable=AsyncMock, return_value=mock_response
+        ) as mock_json:
+            await client.get_data("test_id", cd_tab="NULL", cd_cat01="Null")
+
+        call_params = mock_json.call_args[0][1]
+        assert "cdCat01" not in call_params
+        assert "cdTab" not in call_params
+        await client.close()
