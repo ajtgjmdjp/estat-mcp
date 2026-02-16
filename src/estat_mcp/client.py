@@ -252,7 +252,7 @@ class EstatClient:
                 MetaItem(
                     code=c.get("@code", ""),
                     name=c.get("@name", ""),
-                    level=int(c.get("@level", "1")),
+                    level=int(c.get("@level") or "1"),
                     unit=c.get("@unit"),
                 )
                 for c in classes
