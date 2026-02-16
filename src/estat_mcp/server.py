@@ -184,34 +184,41 @@ async def get_statistic_data(
     ] = None,
     cd_tab: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(
             description="Filter by table item code. Example: '110' for population",
         ),
     ] = None,
     cd_time: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by time code (時間軸事項コード). Example: '2024000' for 2024"),
     ] = None,
     cd_area: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by area code (地域事項コード). Example: '13000' for Tokyo"),
     ] = None,
     cd_cat01: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by classification code 01 (分類事項01コード)"),
     ] = None,
     lv_tab: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(
             description="Table item hierarchy level. Example: '1' or '1-2'",
         ),
     ] = None,
     lv_time: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Time axis hierarchy level (時間軸事項階層レベル)"),
     ] = None,
     lv_area: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Area hierarchy level (地域事項階層レベル)"),
     ] = None,
 ) -> dict[str, Any]:
@@ -283,30 +290,37 @@ async def get_all_statistic_data(
     ] = 10,
     cd_tab: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by table item code (表章事項コード)"),
     ] = None,
     cd_time: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by time code (時間軸事項コード)"),
     ] = None,
     cd_area: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by area code (地域事項コード)"),
     ] = None,
     cd_cat01: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Filter by classification code 01 (分類事項01コード)"),
     ] = None,
     lv_tab: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Table item hierarchy level (表章事項階層レベル)"),
     ] = None,
     lv_time: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Time axis hierarchy level (時間軸事項階層レベル)"),
     ] = None,
     lv_area: Annotated[
         str | None,
+        BeforeValidator(_coerce_str),
         Field(description="Area hierarchy level (地域事項階層レベル)"),
     ] = None,
 ) -> dict[str, Any]:
