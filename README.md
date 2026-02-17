@@ -7,6 +7,8 @@
 
 [e-Stat](https://www.e-stat.go.jp/) (政府統計の総合窓口) API client and MCP server for Japanese government statistics.
 
+📝 [日本語チュートリアル: Claude に聞くだけで GDP や CPI がわかる (Zenn)](https://zenn.dev/ajtgjmdjp/articles/estat-mcp-intro)
+
 ## What is this?
 
 **estat-mcp** provides programmatic access to Japan's official statistics portal ([e-Stat](https://www.e-stat.go.jp/)), which hosts 3,000+ statistical tables covering population, economy, prices, labor, agriculture, and regional data. It exposes these as both a Python async client and an [MCP](https://modelcontextprotocol.io/) server for AI assistants.
