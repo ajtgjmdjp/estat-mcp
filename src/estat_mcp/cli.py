@@ -16,10 +16,19 @@ import sys
 from typing import TYPE_CHECKING, Literal, cast
 
 import click
+import httpx
 from loguru import logger
+
+from estat_mcp.client import EstatAPIError
 
 if TYPE_CHECKING:
     from estat_mcp.models import StatsData, StatsTable
+
+
+def _handle_api_error(e: Exception, prefix: str = "Error") -> None:
+    """Print an API error message to stderr and exit with code 1."""
+    click.echo(f"{prefix}: {e}", err=True)
+    raise SystemExit(1) from None
 
 
 @click.group()
@@ -61,9 +70,8 @@ def search(keyword: str, limit: int, fmt: str) -> None:
 
     try:
         tables = asyncio.run(_run())
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+    except (EstatAPIError, httpx.HTTPError, json.JSONDecodeError) as e:
+        _handle_api_error(e)
 
     if fmt == "json":
         click.echo(json.dumps([t.model_dump() for t in tables], ensure_ascii=False, indent=2))
@@ -134,9 +142,8 @@ def data(
 
     try:
         result = asyncio.run(_run())
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+    except (EstatAPIError, httpx.HTTPError, json.JSONDecodeError) as e:
+        _handle_api_error(e)
 
     if fmt == "json":
         click.echo(json.dumps(result.to_dicts(), ensure_ascii=False, indent=2))
@@ -215,9 +222,8 @@ def test_connection() -> None:
     try:
         result = asyncio.run(_test())
         click.echo(f"[OK]   {result}")
-    except Exception as e:
-        click.echo(f"[FAIL] API error: {e}", err=True)
-        sys.exit(1)
+    except (EstatAPIError, httpx.HTTPError, json.JSONDecodeError) as e:
+        _handle_api_error(e, prefix="[FAIL] API error")
 
     click.echo("\nAll checks passed.")
 

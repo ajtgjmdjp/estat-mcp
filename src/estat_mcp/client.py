@@ -86,6 +86,38 @@ def _parse_numeric(raw: str) -> float | int | str | None:
         return raw
 
 
+def _parse_data_values(data_inf: dict[str, Any]) -> list[DataValue]:
+    """Parse raw API VALUE items into DataValue objects.
+
+    Args:
+        data_inf: The DATA_INF dict from the e-Stat API response.
+
+    Returns:
+        List of parsed DataValue objects.
+    """
+    values: list[DataValue] = []
+    for item in _ensure_list(data_inf.get("VALUE", [])):
+        raw_val = item.get("$")
+        parsed_value: float | int | str | None = None
+        if raw_val is not None:
+            parsed_value = _parse_numeric(str(raw_val))
+
+        classification_codes = {
+            k.lstrip("@"): v for k, v in item.items() if k.startswith("@cat")
+        }
+
+        values.append(
+            DataValue(
+                value=parsed_value,
+                table_code=item.get("@tab"),
+                time_code=item.get("@time"),
+                area_code=item.get("@area"),
+                classification_codes=classification_codes,
+            )
+        )
+    return values
+
+
 class EstatAPIError(Exception):
     """Raised when the e-Stat API returns an unexpected response."""
 
@@ -275,11 +307,13 @@ class EstatClient:
             area_items=area_items,
         )
 
-    async def get_data(
-        self,
+    @staticmethod
+    def _build_data_params(
         stats_id: str,
         *,
         dataset_id: str | None = None,
+        limit: int = 100000,
+        start_position: int | None = None,
         lv_tab: str | None = None,
         cd_tab: str | None = None,
         lv_time: str | None = None,
@@ -287,11 +321,8 @@ class EstatClient:
         lv_area: str | None = None,
         cd_area: str | None = None,
         cd_cat01: str | None = None,
-        start_position: int | None = None,
-        limit: int = 100000,
-    ) -> StatsData:
-        url = f"{self._base_url}getStatsData"
-        params: dict[str, Any] = {}
+    ) -> dict[str, str]:
+        params: dict[str, str] = {}
 
         if dataset_id:
             params["dataSetId"] = dataset_id
@@ -313,37 +344,50 @@ class EstatClient:
                 params[key] = val
 
         if start_position is not None:
-            params["startPosition"] = start_position
+            params["startPosition"] = str(start_position)
         if limit is not None:
-            params["limit"] = limit
+            params["limit"] = str(limit)
 
-        params = self._build_params(params)
+        return params
+
+    async def get_data(
+        self,
+        stats_id: str,
+        *,
+        dataset_id: str | None = None,
+        lv_tab: str | None = None,
+        cd_tab: str | None = None,
+        lv_time: str | None = None,
+        cd_time: str | None = None,
+        lv_area: str | None = None,
+        cd_area: str | None = None,
+        cd_cat01: str | None = None,
+        start_position: int | None = None,
+        limit: int = 100000,
+    ) -> StatsData:
+        url = f"{self._base_url}getStatsData"
+        params = self._build_params(
+            self._build_data_params(
+                stats_id,
+                dataset_id=dataset_id,
+                limit=limit,
+                start_position=start_position,
+                lv_tab=lv_tab,
+                cd_tab=cd_tab,
+                lv_time=lv_time,
+                cd_time=cd_time,
+                lv_area=lv_area,
+                cd_area=cd_area,
+                cd_cat01=cd_cat01,
+            )
+        )
         data = await self._get_json(url, params)
 
         stat_data = data.get("GET_STATS_DATA", {}).get("STATISTICAL_DATA", {})
         result_inf = stat_data.get("RESULT_INF", {})
         data_inf = stat_data.get("DATA_INF", {})
 
-        values: list[DataValue] = []
-        for item in _ensure_list(data_inf.get("VALUE", [])):
-            raw_val = item.get("$")
-            parsed_value: float | int | str | None = None
-            if raw_val is not None:
-                parsed_value = _parse_numeric(str(raw_val))
-
-            classification_codes = {
-                k.lstrip("@"): v for k, v in item.items() if k.startswith("@cat")
-            }
-
-            values.append(
-                DataValue(
-                    value=parsed_value,
-                    table_code=item.get("@tab"),
-                    time_code=item.get("@time"),
-                    area_code=item.get("@area"),
-                    classification_codes=classification_codes,
-                )
-            )
+        values = _parse_data_values(data_inf)
 
         total_count = result_inf.get("TOTAL_NUMBER", len(values))
         next_key_raw = result_inf.get("NEXT_KEY")

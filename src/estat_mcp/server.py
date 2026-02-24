@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from estat_mcp.models import DataValue, StatsData
+
 from fastmcp import FastMCP
 from pydantic import BeforeValidator, Field
 
@@ -66,6 +68,58 @@ async def _lifespan(server: FastMCP[dict[str, Any]]) -> AsyncIterator[dict[str, 
     if _client is not None:
         await _client.close()
         _client = None
+
+
+_MCP_VALUE_LIMIT = 100
+"""Maximum number of data values to include in MCP responses."""
+
+
+def _format_values(values: list[DataValue], limit: int = _MCP_VALUE_LIMIT) -> list[dict[str, Any]]:
+    """Format StatValue objects for MCP tool responses."""
+    return [
+        {
+            "value": v.value,
+            "table_code": v.table_code,
+            "time_code": v.time_code,
+            "area_code": v.area_code,
+            **v.classification_codes,
+        }
+        for v in values[:limit]
+    ]
+
+
+def _format_data_response(data: StatsData) -> dict[str, Any]:
+    """Build the common response dict shared by data-fetching tools."""
+    return {
+        "stats_id": data.stats_id,
+        "total_count": data.total_count,
+        "values": _format_values(data.values),
+        "has_more": data.next_key is not None,
+    }
+
+
+def _format_all_data_response(data: StatsData) -> dict[str, Any]:
+    """Build response dict for get_all_statistic_data with pagination note."""
+    result = _format_data_response(data)
+    result["fetched_count"] = len(data.values)
+    result["note"] = (
+        "First 100 records shown. Use get_statistic_data with start_position for more."
+        if len(data.values) > _MCP_VALUE_LIMIT
+        else None
+    )
+    return result
+
+
+def _filter_kwargs(**kwargs: str | None) -> dict[str, str]:
+    """Build filter keyword arguments for client data calls, stripping None values."""
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
+def _format_paginated_response(data: StatsData) -> dict[str, Any]:
+    """Build response dict for paginated data endpoint, including next_key."""
+    result = _format_data_response(data)
+    result["next_key"] = data.next_key
+    return result
 
 
 mcp = FastMCP(
@@ -242,35 +296,14 @@ async def get_statistic_data(
     - next_key: Pagination key for the next page
     """
     client = await _get_client()
-    data = await client.get_data(
-        stats_id,
-        limit=limit,
-        start_position=start_position,
-        cd_tab=cd_tab,
-        cd_time=cd_time,
-        cd_area=cd_area,
-        cd_cat01=cd_cat01,
-        lv_tab=lv_tab,
-        lv_time=lv_time,
-        lv_area=lv_area,
+    filters = _filter_kwargs(
+        cd_tab=cd_tab, cd_time=cd_time, cd_area=cd_area, cd_cat01=cd_cat01,
+        lv_tab=lv_tab, lv_time=lv_time, lv_area=lv_area,
     )
-
-    return {
-        "stats_id": data.stats_id,
-        "total_count": data.total_count,
-        "values": [
-            {
-                "value": v.value,
-                "table_code": v.table_code,
-                "time_code": v.time_code,
-                "area_code": v.area_code,
-                **v.classification_codes,
-            }
-            for v in data.values[:100]  # Limit output size for MCP
-        ],
-        "has_more": data.next_key is not None,
-        "next_key": data.next_key,
-    }
+    data = await client.get_data(
+        stats_id, limit=limit, start_position=start_position, **filters,
+    )
+    return _format_paginated_response(data)
 
 
 @mcp.tool()
@@ -340,36 +373,9 @@ async def get_all_statistic_data(
     - has_more: Whether max_pages was reached before fetching all data
     """
     client = await _get_client()
-    data = await client.get_all_data(
-        stats_id,
-        max_pages=max_pages,
-        cd_tab=cd_tab,
-        cd_time=cd_time,
-        cd_area=cd_area,
-        cd_cat01=cd_cat01,
-        lv_tab=lv_tab,
-        lv_time=lv_time,
-        lv_area=lv_area,
+    filters = _filter_kwargs(
+        cd_tab=cd_tab, cd_time=cd_time, cd_area=cd_area, cd_cat01=cd_cat01,
+        lv_tab=lv_tab, lv_time=lv_time, lv_area=lv_area,
     )
-
-    return {
-        "stats_id": data.stats_id,
-        "total_count": data.total_count,
-        "fetched_count": len(data.values),
-        "values": [
-            {
-                "value": v.value,
-                "table_code": v.table_code,
-                "time_code": v.time_code,
-                "area_code": v.area_code,
-                **v.classification_codes,
-            }
-            for v in data.values[:100]  # Limit output size for MCP
-        ],
-        "has_more": data.next_key is not None,
-        "note": (
-            "First 100 records shown. Use get_statistic_data with start_position for more."
-            if len(data.values) > 100
-            else None
-        ),
-    }
+    data = await client.get_all_data(stats_id, max_pages=max_pages, **filters)
+    return _format_all_data_response(data)
