@@ -19,6 +19,7 @@ htmlcov/
 *.zip
 *.xml
 *.json
+!glama.json
 data/cache/
 review_prompt.txt
 .mcpregistry_*
