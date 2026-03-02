@@ -377,5 +377,5 @@ async def get_all_statistic_data(
         cd_tab=cd_tab, cd_time=cd_time, cd_area=cd_area, cd_cat01=cd_cat01,
         lv_tab=lv_tab, lv_time=lv_time, lv_area=lv_area,
     )
-    data = await client.get_all_data(stats_id, max_pages=max_pages, **filters)
+    data = await client.get_all_data(stats_id, max_pages=max_pages, **filters)  # type: ignore[arg-type]
     return _format_all_data_response(data)
