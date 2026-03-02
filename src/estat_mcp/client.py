@@ -102,9 +102,7 @@ def _parse_data_values(data_inf: dict[str, Any]) -> list[DataValue]:
         if raw_val is not None:
             parsed_value = _parse_numeric(str(raw_val))
 
-        classification_codes = {
-            k.lstrip("@"): v for k, v in item.items() if k.startswith("@cat")
-        }
+        classification_codes = {k.lstrip("@"): v for k, v in item.items() if k.startswith("@cat")}
 
         values.append(
             DataValue(

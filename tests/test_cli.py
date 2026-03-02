@@ -59,6 +59,7 @@ class TestVersionCommand:
         assert result.exit_code == 0
         assert "estat-mcp" in result.output
         from estat_mcp import __version__
+
         assert __version__ in result.output
 
 
