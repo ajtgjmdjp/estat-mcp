@@ -364,3 +364,7 @@ e-Stat data is provided under terms compatible with [CC BY 4.0](https://creative
 Apache-2.0
 
 <!-- mcp-name: io.github.ajtgjmdjp/estat-mcp -->
+
+## Download History
+
+[![Download History](https://skill-history.com/chart/ajtgjmdjp/estat-mcp.svg)](https://skill-history.com/ajtgjmdjp/estat-mcp)
