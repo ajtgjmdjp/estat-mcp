@@ -39,4 +39,8 @@ __all__ = [
     "StatsTable",
 ]
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
+
+import logging as _logging
+
+_logging.getLogger("estat_mcp").addHandler(_logging.NullHandler())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from estat_mcp.client import EstatAPIError, EstatClient, _ensure_list, _parse_numeric, _RateLimiter
@@ -492,3 +493,59 @@ class TestNullStringSanitization:
         assert "cdCat01" not in call_params
         assert "cdTab" not in call_params
         await client.close()
+
+
+class TestReliabilityHardening:
+    """v0.2.6: monotonic クロック、ネットワークエラーのリトライ、明確な例外。"""
+
+    def test_rate_limiter_uses_monotonic_clock(self) -> None:
+        import inspect
+
+        from estat_mcp.client import _RateLimiter
+
+        src = inspect.getsource(_RateLimiter)
+        assert "monotonic" in src, "壁時計 time.time() は NTP 補正で壊れる"
+        assert "_time.time()" not in src
+
+    async def test_connect_error_is_retried(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = EstatClient(app_id="test")
+        calls = {"n": 0}
+
+        class _Resp:
+            status_code = 200
+
+            @staticmethod
+            def raise_for_status() -> None: ...
+
+            @staticmethod
+            def json() -> dict:
+                return {"GET_STATS_LIST": {"RESULT": {"STATUS": 0}}}
+
+        async def flaky_get(url, params=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise httpx.ConnectError("refused")
+            return _Resp()
+
+        http = MagicMock()
+        http.get = flaky_get
+        client._http = http
+        resp = await client._request_with_retry("http://x", {})
+        assert calls["n"] == 2
+        assert resp.status_code == 200
+
+    async def test_retry_exhaustion_raises_estat_error(self) -> None:
+        from unittest.mock import MagicMock
+
+        client = EstatClient(app_id="test")
+
+        async def always_fail(url, params=None):
+            raise httpx.ConnectError("refused")
+
+        http = MagicMock()
+        http.get = always_fail
+        client._http = http
+        with pytest.raises(EstatAPIError, match="after 3 attempts"):
+            await client._request_with_retry("http://x", {})

@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from typing import TYPE_CHECKING, Literal, cast
 
 import click
 import httpx
-from loguru import logger
 
 from estat_mcp.client import EstatAPIError
 
@@ -36,8 +36,10 @@ def _handle_api_error(e: Exception, prefix: str = "Error") -> None:
 def cli(verbose: bool) -> None:
     """e-Stat API client and MCP server for Japanese government statistics."""
     level = "DEBUG" if verbose else "INFO"
-    logger.remove()
-    logger.add(sys.stderr, level=level, format="{time:HH:mm:ss} | {level:<7} | {message}")
+    logging.basicConfig(
+        level=level, stream=sys.stderr, format="%(asctime)s | %(levelname)-7s | %(message)s"
+    )
+    logging.getLogger("estat_mcp").setLevel(level)
 
 
 @cli.command()
@@ -252,7 +254,7 @@ def serve(transport: str) -> None:
     """
     from estat_mcp.server import mcp
 
-    logger.info(f"Starting e-Stat MCP server ({transport} transport)")
+    logging.getLogger("estat_mcp").info(f"Starting e-Stat MCP server ({transport} transport)")
     mcp.run(transport=cast('Literal["stdio", "sse"]', transport))
 
 

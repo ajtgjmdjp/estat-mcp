@@ -30,12 +30,12 @@ e-Stat API v3.0 JSON response conventions:
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time as _time
 from typing import Any
 
 import httpx
-from loguru import logger
 
 from estat_mcp.models import (
     DataSet,
@@ -45,6 +45,8 @@ from estat_mcp.models import (
     StatsMeta,
     StatsTable,
 )
+
+logger = logging.getLogger(__name__)
 
 # e-Stat API v3.0 base URLs
 _BASE_URL = "https://api.e-stat.go.jp/rest/3.0/app/json/"
@@ -133,11 +135,11 @@ class _RateLimiter:
         if self._interval <= 0:
             return
         async with self._lock:
-            now = _time.time()
+            now = _time.monotonic()
             elapsed = now - self._last_request
             if elapsed < self._interval:
                 await asyncio.sleep(self._interval - elapsed)
-            self._last_request = _time.time()
+            self._last_request = _time.monotonic()
 
 
 class EstatClient:
@@ -195,7 +197,8 @@ class EstatClient:
                     request=resp.request,
                     response=resp,
                 )
-            except httpx.TimeoutException as e:
+            except httpx.TransportError as e:
+                # Includes timeouts and transient network failures
                 last_exc = e
 
             if attempt < max_retries - 1:
@@ -203,9 +206,8 @@ class EstatClient:
                 logger.warning(f"Retry {attempt + 1}/{max_retries} after {delay}s")
                 await asyncio.sleep(delay)
 
-        if isinstance(last_exc, httpx.HTTPError):
-            raise EstatAPIError(f"HTTP error: {last_exc}") from last_exc
-        raise last_exc  # type: ignore[misc]
+        msg = f"request failed after {max_retries} attempts: {url} ({last_exc})"
+        raise EstatAPIError(msg) from last_exc
 
     async def _get_json(self, url: str, params: dict[str, Any]) -> Any:
         data = (await self._request_with_retry(url, params)).json()
