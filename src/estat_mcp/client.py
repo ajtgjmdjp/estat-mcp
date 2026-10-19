@@ -218,13 +218,14 @@ class EstatClient:
         """Check e-Stat API response for application-level errors.
 
         e-Stat returns HTTP 200 even for errors like invalid appId.
-        Errors are indicated by STATUS != 0 in the RESULT object.
+        Per the e-Stat API spec, STATUS 0-2 are normal results (1 means
+        "succeeded, but no matching data") and STATUS >= 100 is an error.
         """
         for key in data:
             result = data[key].get("RESULT") if isinstance(data[key], dict) else None
             if result and isinstance(result, dict):
                 status = result.get("STATUS")
-                if status is not None and status != 0:
+                if status is not None and int(status) >= 100:
                     error_msg = result.get("ERROR_MSG", f"API error (status={status})")
                     raise EstatAPIError(error_msg)
 

@@ -417,12 +417,19 @@ class TestAPIStatusCheck:
         data = {
             "GET_STATS_DATA": {
                 "RESULT": {
-                    "STATUS": 1,
+                    "STATUS": 102,
                 }
             }
         }
         with pytest.raises(EstatAPIError, match="API error"):
             client._check_api_status(data)
+
+    @pytest.mark.parametrize("status", [1, 2, "1"])
+    def test_check_api_status_no_data_is_not_error(self, status: int | str) -> None:
+        """STATUS 1-2 are normal results (e.g. no matching data), not errors."""
+        client = EstatClient(app_id="test")
+        data = {"GET_STATS_LIST": {"RESULT": {"STATUS": status, "ERROR_MSG": "no data"}}}
+        client._check_api_status(data)
 
     def test_check_api_status_no_result(self) -> None:
         client = EstatClient(app_id="test")
